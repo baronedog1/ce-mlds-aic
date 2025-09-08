@@ -1,0 +1,33 @@
+# OS / Editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Node
+node_modules/
+dist/
+build/
+.parcel-cache/
+.next/
+out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Logs / Artifacts / Temp
+logs/
+tmp/
+temp/
+*.log
+docs/artifacts/
+.temp/
+
+# Project
+coverage/
+.env
+.env.*
+

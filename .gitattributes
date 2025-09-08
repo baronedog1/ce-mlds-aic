@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+# Normalize common binary formats
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg text
+
+# Keep Markdown as text for diffs
+*.md text diff=markdown
+
