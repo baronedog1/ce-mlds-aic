@@ -7,10 +7,11 @@ This guide is the living contract for how we develop complex projects with Claud
 ## 🎯 Core Principles
 
 - Docs first: rules/explanations live in docs; implementation lives in code (linked by relative paths).
+- Pure natural language: all specification documents must use natural language only, no code snippets, SQL, or DDL.
 - Single source of truth: avoid duplicates; prefer links to the canonical place (e.g., root DB index and per‑table docs).
 - Anchor‑driven: operate via anchors and upsert by anchors; make cross‑links bidirectional and reachable.
 - Honest tests and evidence: record real executions; link logs, reports, and screenshots; do not remove failures.
-- No fallback/implicit defaults: no silent catch‑alls or downgrade “compat” behavior unless explicitly approved.
+- No fallback/implicit defaults: no silent catch‑alls or downgrade "compat" behavior unless explicitly approved.
 - Idempotency: add‑only; do not overwrite existing files; append Implementation Records chronologically.
 
 ---

@@ -1,8 +1,9 @@
 ---
 name: commit-check
-description: "Commit Check | Unified quality gate. Orchestrates code-agent, test-agent, architect, api-expert, database-expert, product-manager to check code/docs/architecture/contracts/data consistency. Commit allowed only if all pass. Default dry-run; no auto-commit"
+description: "提交检查命令｜统一质量闸。串联 code-agent、test-agent、architect、api-expert、database-expert、product-manager 检查代码/文档/架构/契约/数据一致性，全部通过才允许提交。默认 dry-run，不自动提交"
 allowed-tools:
   - TodoWrite
+  - Task(task-planner)
   - Task(architect)
   - Task(api-expert)
   - Task(product-manager)
@@ -17,85 +18,85 @@ allowed-tools:
   - Bash(*)
 ---
 
-## Overview
+## 概要
 
-- You get: an end‑to‑end quality gate report (per‑Agent sections + overall conclusion), blocker list and fix advice; optionally run `git commit` when passing.
-- You provide: `scope_dir`, `plan_path`; optional `naming_rules`, `backend_ref_dir`, `auto_commit=false`, `commit_message`, `extra_context`.
-- Deliverables: `docs/logs/commit-check-YYYYMMDD-HHmm.md` report; when `auto_commit=true` and thresholds pass, may commit and record `commit_hash`.
+- 你将获得：端到端质量闸报告（各 Agent 分项 + 综合结论），阻断项清单与修复建议；可选在通过时执行 `git commit`。
+- 你需要提供：`scope_dir`、`plan_path`；可选 `naming_rules`、`backend_ref_dir`、`auto_commit=false`、`commit_message`、`extra_context`。
+- 产出物：`docs/logs/commit-check-YYYYMMDD-HHmm.md` 报告；当 `auto_commit=true` 且通过阈值时可执行提交并记录 `commit_hash`。
 
-## Inputs
+## 输入
 
 required:
-- scope_dir: backend | frontend-shell | backend-module | frontend-module | root
-- plan_path: target plan doc (e.g., `docs/plan/plan-<scope>.md`)
+- scope_dir: 执行根（backend | frontend-shell | backend-module | frontend-module | root）
+- plan_path: 目标计划文档（如 `docs/plan/plan-<scope>.md`）
 
 optional:
-- naming_rules: naming/dir/anchor rules (for architect/code-agent validation)
-- backend_ref_dir: (frontend) aligned backend docs root
-- auto_commit: whether to auto-commit on pass (default false)
-- commit_message: commit message when passing (default `chore(<scope>): commit-check pass`)
-- extra_context: other context/links (PR/screenshots/prototypes, etc.)
+- naming_rules: 命名/目录/锚点规则（给 architect/code-agent 校验）
+- backend_ref_dir: （前端可传）对齐的后端文档根
+- auto_commit: 是否在通过时自动提交（默认 false）
+- commit_message: 通过时的提交信息（默认 `chore(<scope>): commit-check pass`）
+- extra_context: 其它上下文或链接（PR/截图/原型等）
 
 ---
 
-## Unified Constraints
+## 统一约束
 
-- No spec edits: this command only checks and reports; do not backfill “Implementation Records”.
-- Data doc consistency: non-root data docs (module/frontend) must link back to root `database/docs/database.md`; field lists live only in root `database/docs/tables/*.md`.
-- Single implementation / no downgrade: forbid fallback/compat/implicit defaults; violations are blockers.
-- Code gates: lint/type = 0 errors; forbidden patterns = 0 (any/@ts-ignore/prod console.log, etc.); duplication ≤ 5%.
-- Test gates: key paths 100% passed; key pages’ five states covered; API contracts (auth/error/idempotence/concurrency) covered.
-- Architecture & contracts: no boundary violations (cross‑module direct DB/bypass gateway); API docs match implementation; frontend Integration matches backend API.
+- 不修改规范文档：本命令只做检查与报告；不回填“实施记录”。
+- 数据文档一致性：非根数据文档（模块/前端）必须显式回链根 `database/docs/database.md`，表字段说明只存在于根 `database/docs/tables/*.md`。
+- 唯一实现与无降级：禁止备用/兼容/隐式兜底；发现即为阻断项。
+- 代码门槛：lint/type=0 error；禁止模式=0（any/@ts-ignore/prod console.log 等）；重复率 ≤ 5%。
+- 测试门槛：核心路径 100% 通过；关键页面五态覆盖；接口契约（鉴权/错误/幂等/并发）覆盖。
+- 架构与契约：不越界（跨模块直连 DB/绕过 gateway）；API 文档与实现一致，前端 Integration 与后端 API 一致。
 
 ---
 
-## Flow
+## 执行流程
 
-1) Create log & TodoList (required)
-- Create `commit-check-YYYYMMDD-HHmm.md` under `<scope_dir>/docs/logs/` with header and Todo placeholder.
+1) 建日志与 TodoList（必做）
+- 在 `<scope_dir>/docs/logs/` 创建 `commit-check-YYYYMMDD-HHmm.md`，写入头部与 TodoList 占位。
 
-2) Per‑Agent checks
-- code-agent/check: structure/deps/quality/forbidden/duplication
-- test-agent/verify: execute acceptance cases (dev/staging) and compute pass rates
-- architect/validate: layering responsibilities/dependency boundaries/directory conventions
-- api-expert/validate: API spec consistency (root/backend/frontend Integration)
-- database-expert/validate: root index/table docs/module usage/frontend data bridge consistency and cross-links
-- product-manager/validate: product docs vs implementation/tests consistency (visual-first; no technical details)
+2) 分项检查
+- code-agent/check：结构/依赖/质量/禁止模式/重复率
+- test-agent/verify：执行验收用例（dev/staging）并统计通过率
+- architect/validate：分层职责/依赖边界/目录规范
+- api-expert/validate：API 规范一致性（根/后端/前端 Integration）
+- database-expert/validate：根索引/表文档/模块映射/前端数据桥接的一致性与互链可达
+- product-manager/validate：产品文档与实现/测试的一致性（以图为主，不展开技术细节）
 
-3) Aggregate & conclude
-- Compute per‑section scores and overall conclusion (see “Scoring & Thresholds”); produce blocker list and fix advice; write to log.
+3) 统分与结论
+- 计算分项分与综合结论（见“评分与阈值”）；生成阻断项清单与修复建议；写入日志。
 
-4) Optional auto-commit (explicit consent required)
-- When overall = PASS and `auto_commit=true`, run:
+4) 可选自动提交（需显式同意）
+- 当结论为 PASS 且 `auto_commit=true` 时，执行：
   - `git add -A`
   - `git commit -m "<commit_message>"`
-  - Record `commit_hash` in the report
-- Otherwise, output report and “Next steps” (e.g., run `/fix-issue` to address blockers).
+  - 记录 `commit_hash` 到报告
+- 否则仅输出报告与“下一步建议”（如调用 `/fix-issue` 修复阻断项）。
 
 ---
 
-## Scoring & Thresholds (defaults; overridable)
+## 评分与阈值（默认，可由命令覆盖）
 
-- code-agent: ≥ 80/100, and lint/type=0, forbidden=0, duplicates≤5%, boundary=0, no-fallback=0
-- test-agent: key paths 100% pass; overall ≥ 80/100
-- architect: ≥ 80/100; no boundary/major directory violations
-- api-expert: ≥ 80/100; contract consistency passes
-- database-expert: ≥ 90/100; root/table/module/frontend data docs cross-link completeness
-- product-manager: ≥ 80/100; product flows align with implementation
+- code-agent：≥ 80/100，且 lint/type=0、forbidden=0、duplicates≤5%、boundary=0、no-fallback=0
+- test-agent：核心路径 100% 通过，整体 ≥ 80/100
+- architect：≥ 80/100，无越界/目录重大违规
+- api-expert：≥ 80/100，契约一致性通过
+- database-expert：≥ 90/100，根/表/模块/前端数据文档互链完整
+- product-manager：≥ 80/100，产品流程与实现吻合
 
-Pass condition (AND):
-- All sections meet minimum thresholds;
-- BLOCKERs = 0;
-- Critical rules met (no downgrade/no fallback/no compat/no boundary violation/data docs link root index).
+通过条件（AND）：
+- 所有分项达到最低分阈值；
+- 阻断项（BLOCKER）= 0；
+- 关键规则（无降级/无备用/无兼容/不越界/数据回链根索引）全部满足。
 
 ---
 
-## Report Snippets
+## 输出样式（报告片段）
 
-### Pass
+### 通过报告
 ```md
-# ✅ Commit check passed
-## 📊 Scores
+# ✅ 提交检查通过
+## 📊 分项得分
 - code-agent: 92/100
 - test-agent: 90/100
 - architect: 88/100
@@ -103,43 +104,43 @@ Pass condition (AND):
 - database-expert: 95/100
 - product-manager: 90/100
 
-## 🚀 Conclusion
+## 🚀 结论
 - overall: PASS
 - commit_allowed: true
 - commit_executed: false
 - commit_hash: null
 
-## 🔎 Notes
-- Next: rerun with auto_commit=true or commit manually
+## 🔎 备注
+- 下一步：可选择 auto_commit=true 再次运行或手动提交
 ```
 
-### Fail
+### 失败报告
 ```md
-# ❌ Commit check failed
-## 📊 Scores
-- code-agent: 65/100 (duplications/forbidden patterns)
-- test-agent: 70/100 (3 failing cases)
+# ❌ 提交检查失败
+## 📊 分项得分
+- code-agent: 65/100（发现重复实现/禁止模式）
+- test-agent: 70/100（3 个用例失败）
 - architect: 85/100
-- api-expert: 60/100 (frontend-backend contract drift)
+- api-expert: 60/100（前后端契约不一致）
 - database-expert: 90/100
 - product-manager: 88/100
 
-## 🚨 Blockers (must fix)
-1) Duplicate implementations (services/user vs utils/userHelper) → remove redundancy, unify impl
-2) Test failures (test-auth-login, etc.) → fix to meet acceptance
-3) Contract inconsistency (POST /api/users) → unify response format
+## 🚨 阻断项（需修复）
+1. 重复实现（services/user 与 utils/userHelper）→ 删除冗余，统一实现
+2. 测试失败（test-auth-login 等）→ 按验收修正
+3. 契约不一致（POST /api/users）→ 统一响应格式
 
-## 🧭 Conclusion
+## 🧭 结论
 - overall: FAIL
 - commit_allowed: false
 
-## 🔧 Advice
-- Run `/fix-issue` to resolve blockers, then re-run commit-check
+## 🔧 建议
+- 依次调用 `/fix-issue` 修复阻断项，再运行本命令复检
 ```
 
 ---
 
-## Log Contract (command writes + Agents append)
+## 日志契约（命令自写 + Agent 追加）
 ```md
 # /commit-check @ <scope_dir>
 start: <ISO>
@@ -151,18 +152,19 @@ inputs: {...}
 ## agent: database-expert/validate result: pass|fail (score/100)
 ## agent: product-manager/validate result: pass|fail (score/100)
 result: pass | fail
-overall_score: <avg>/100
-blocking_issues: [<list>]
+overall_score: <平均分>/100
+blocking_issues: [<高优先级问题列表>]
 commit_allowed: true|false
 commit_executed: true|false
 commit_hash: <hash|null>
-notes: <summary/fix advice>
+notes: <检查总结/修复建议>
 ```
 
 ---
 
-## Idempotency & History
+## 幂等性与历史
 
-- Record results over time to allow comparisons;
-- After fixes, re-run and update statuses;
-- Keep historical reports for traceability and trend evaluation.
+- 检查结果按时间记录，支持多次运行对比；
+- 修复后重新检查，更新检查状态；
+- 保留历史报告便于追溯与趋势评估。
+
