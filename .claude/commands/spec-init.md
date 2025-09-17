@@ -1,186 +1,130 @@
----
+﻿---
 name: spec-init
-description: "规格初始化命令｜子模块按正确顺序生成三文档体系：Plan → Product框架 → API/Database补充 → Test生成"
+description: "规范补全命令 | 为 MCP Server 项目补齐服务概览、接口契约、三子域的规则与计划，生成可执行的任务锚点"
 allowed-tools:
-  - TodoWrite
-  - Task(task-planner)
-  - Task(product-manager)
-  - Task(api-expert)
-  - Task(database-expert)
-  - Task(test-agent)
-  - Task(code-agent)
   - Task(architect)
-  - Bash(pwd)
+  - Task(api-expert)
+  - Task(code-agent)
+  - Task(product-manager)
+  - Task(test-agent)
+  - Task(task-planner)
   - Read
   - Write
-  - Edit(*.md)
-  - Glob(*)
+  - Edit(*)
   - Grep(*)
 ---
 
-## 概要
+## 目标
 
-**核心流程**：
-- 根目录：生成纯规范文档（Architecture、API规范、Code规范、Test策略）和粗颗粒度Plan
-- 子模块：按正确顺序执行 - Plan → Product框架 → API补充 → Database补充 → Test生成
-- 三文档体系：Plan、Product、Test保持相同任务颗粒度和编号体系
+- 将 `/initial` 产生的骨架填充为可落地的 MCP Server 规范。
+- 根层输出端到端用例、接口契约、测试策略和任务计划，移除数据库依赖。
+- 在 mcp-shell、server、frontend-minimal 各子域生成三文档体系内容并建立任务锚点。
+- 产出 `spec-init-*.md` 日志并在相关文档的 Implementation Records 留痕。
 
-**关键原则**：
-- Product文档由三个agent协作完成
-- API Expert和Database Expert必须接收product_path参数
-- Test Agent必须接收plan_path参数
-- 所有文档使用统一的任务编号格式
-
-## 输入
+## 输入参数
 
 required:
-- scope_dir: 执行根（root | backend | frontend-shell | backend-module | frontend-module）
-
+- scope_dir: root | mcp-shell | server | frontend-minimal
 optional:
-- log_name: 日志文件名（默认 `spec-init-YYYYMMDD-HHmm.md`）
-- backend_ref_dir: 前端对齐的后端文档根目录（前端必传；可指向后端子模块或后端根）
-- seed_requirements: 需求要点/讨论纪要/原型链接（给 task-planner 与 product-manager 提炼）
-- naming_rules: 命名/目录/锚点规则（用于锚点生成与校验）
-
-agents_called（建议）:
-- root: [product-manager, task-planner, api-expert, database-expert, test-agent, code-agent]
-- backend-module: [task-planner, product-manager, api-expert, database-expert, test-agent, code-agent]
-- frontend-shell/module: [product-manager, api-expert, database-expert, task-planner, test-agent, code-agent]
+- seed_requirements: 一句话概述与关键里程碑（root 必填，用于统一基线）
+- log_name: 默认为 `spec-init-YYYYMMDD-HHmm.md`
+agents_called:
+required: [product-manager, architect, api-expert, code-agent, test-agent, task-planner]
+optional: []
 
 ---
 
-## 统一约束
+## 共通规范
 
-- 文档先行：仅自然语言；不包含代码/DDL/脚本；实现细节以相对路径链接。
-- 目录与命名：计划目录固定 `docs/plan/`；计划文件 `plan-<scope>.md`；日志前缀 `spec-init-*.md`。
-- 数据文档：根数据库唯一索引 `database/docs/database.md`；表文档位于 `database/docs/tables/*.md`。所有非根数据文档（模块/前端）必须显式回链根索引。
-- 互链完整：plan 任务 ↔ test 用例双向；与 product/api/database（或 integration/data-ui）互链可达。
-- 幂等：只补不覆；同名文件不覆盖；锚点 upsert；多次运行只追加一次日志条目（按 `log_name` 去重）。
-
----
-
-## 执行流程（通用）
-
-1) 建日志与 TodoList（必做）
-- 使用 TodoWrite 创建 TodoList；Write 创建 `<scope_dir>/docs/logs/<log_name>` 并写入占位。
-
-2) 分场景执行
-- 按下方对应场景调用 Agents，完善各文档内容，建立互链与锚点。
-
-3) 总结
-- 在日志末尾追加统计与下一步建议。
+- 文档结构固定为 “Rules / Explanation / Implementation Records”。
+- 规范阶段只更新 Rules 与 Explanation；Implementation Records 仅记录本次补全。
+- 锚点命名：任务 `#task-<kebab>`，测试 `#test-<kebab>`，接口 `#interface-<kebab>`。
+- 文档需互链（相对路径），尤其是根层与子域之间的关系。
+- 不再生成 database/docs；如有数据需求，在 server 文档写明外部依赖或自带存储模块。
 
 ---
 
-## 场景与执行顺序
+## 根层 scope
 
-### 1) root（项目根）
-执行顺序：
-1. Task(architect) 生成 `docs/architecture.md`（系统架构、模块边界、目录结构）
-2. Task(api-expert) 生成 `docs/api-specification.md`（统一API规范）
-3. Task(code-agent) 生成 `docs/code-standards.md`（全局代码规范）
-4. Task(database-expert) 初始化 `database/docs/database.md` 和 `tables/` 目录
-5. Task(test-agent) 生成 `docs/test-strategy.md`（全局测试策略）
-6. Task(task-planner) 生成 `docs/plan.md`（粗颗粒度里程碑任务）
-
-特点：
-- 纯规范文档，不含实现代码
-- 建立全局标准和原则
-- Plan文档只包含里程碑级任务
-
-### 2) backend/backend-module（后端子模块）
-**严格按顺序执行**：
-1. **Task(task-planner)** 生成 `docs/plan.md`
-   - 输入：scope_dir、seed_requirements
-   - 输出：带序号的任务列表（如：1. - [ ] 认证登录系统）
-
-2. **Task(product-manager)** 生成 `docs/product.md` 框架
-   - 输入：scope_dir、plan_path="docs/plan.md"
-   - 输出：按Plan任务序号生成对应章节，预留API和数据设计部分
-
-3. **Task(api-expert)** 补充Product文档的API设计
-   - 输入：scope_dir、product_path="docs/product.md"
-   - 行为：读取Product文档，补充每个任务的API设计部分
-
-4. **Task(database-expert)** 补充Product文档的数据设计
-   - 输入：scope_dir、product_path="docs/product.md"
-   - 行为：读取Product文档，补充每个任务的数据设计部分
-
-5. **Task(test-agent)** 生成 `docs/test.md`
-   - 输入：scope_dir、plan_path="docs/plan.md"
-   - 输出：按Plan任务序号生成对应测试章节
-
-### 3) frontend-shell/frontend-module（前端子模块）
-**严格按顺序执行**（与后端相同）：
-1. **Task(task-planner)** 生成 `docs/plan.md`
-   - 带序号的任务列表（如：1. - [ ] 登录注册页面）
-
-2. **Task(product-manager)** 生成 `docs/product.md` 框架
-   - 按Plan任务生成章节，包含页面示意图和五态设计
-
-3. **Task(api-expert)** 补充API设计
-   - 说明API调用时机、数据流向、响应处理
-
-4. **Task(database-expert)** 补充数据设计
-   - 说明状态管理映射、缓存策略、本地存储
-
-5. **Task(test-agent)** 生成 `docs/test.md`
-   - UI五态测试、交互测试、兼容性测试
+1. `docs/architecture.md`
+   - 描述 Minimal UI → MCP shell → Server → 外部资源的端到端流。
+   - 指出 shell 与 server 的通信方式、错误冒泡路径、部署拓扑（本地/云端）。
+   - 建议锚点：`#interface-shell-server`、`#task-bootstrap-runner`。
+2. `docs/service-overview.md`
+   - 覆盖用户角色、核心用例、成功指标。
+   - 明确 Minimal UI 的输入/输出范围与 Server 的业务边界。
+3. `docs/interface-contract.md`
+   - 列出 MCP 工具/资源（名称、用途、触发时机）。
+   - 说明 shell 如何将 prompt 映射到 server 接口。
+   - 定义通信模式（长连/短连）、错误码、恢复策略，并引用官方参考仓库。
+4. `docs/code-standards.md`
+   - 说明三块域使用的编程语言、代码规范、依赖边界、日志与安全要求。
+5. `docs/test-strategy.md`
+   - 定义测试金字塔：协议契约、单元、集成、端到端。
+   - 指定自动化/手动职责、CI 触发条件。
+6. `docs/plan/plan-project.md`
+   - Task Planner 输出任务卡：至少包含 Shell MVP、Server 核心能力、Minimal UI 冒烟、部署打包。
+   - 每个任务关联子域文档与测试锚点。
+7. `docs/runbook-local.md`
+   - 描述启动步骤、环境变量、常见故障与排查路径。
+8. 日志 `docs/logs/spec-init-*.md`
+   - 记录完成项、未完成项、阻塞、风险、下一步（通常 `/execute-plan`）。
 
 ---
 
-## 三文档体系说明
+## mcp-shell scope
 
-**子模块核心产出**：
-- **Plan文档（docs/plan.md）**：带序号和checkbox的任务列表，明确每个任务的目标、优先级、工时估算、验收标准
-- **Product文档（docs/product.md）**：按Plan任务序号生成对应章节，包含功能说明、业务流程图或页面示意图、API设计部分、数据设计部分、实现文件清单
-- **Test文档（docs/test.md）**：按Plan任务序号生成测试章节，包含测试说明、预期效果、checkbox格式的测试用例、测试总结
-
-**协作机制**：
-- Product文档由三个agent协作完成：product-manager生成框架和流程图，api-expert补充API设计，database-expert补充数据设计
-- API Expert和Database Expert必须接收product_path参数，在已有框架上补充内容
-- Test Agent必须接收plan_path参数，确保测试用例与计划任务一一对应
-
-**格式要求**：
-- 任务统一格式：`### 序号. - [ ] 任务名称 (#任务-kebab)`
-- 三个文档保持相同的任务颗粒度和编号体系
-- 后端Product包含业务流程图，前端Product包含页面示意图和五态设计
+1. `docs/architecture-mcp-shell.md`
+   - 指定 MCP SDK 与版本。
+   - 说明如何装载既有程序、跨平台注意事项、安全策略（凭证、权限）。
+2. `docs/integration-mcp-shell.md`
+   - 列出工具/资源定义 `tool <name> - <用途>`。
+   - 描述 prompt 到 server 接口的映射、上下文注入逻辑、客户端命令行配置。
+3. `docs/test-mcp-shell.md`
+   - 计划契约测试、兼容性测试、日志与遥测要求。
+4. `docs/plan/plan-mcp-shell.md`
+   - 任务按阶段拆解：MVP 封装、工具扩展、配置打包。
+   - 与根层/其他子域的依赖需要明确。
 
 ---
 
-## 刚性规则（Hard Rules）
+## server scope
 
-- 范围限制：只在 `scope_dir` 内新建/写入；跨目录协作在本层 `docs/plan/` 登记链接。
-- 文档先行：execute 阶段不得补写规范内容，只能回填“实施记录”。
-- 唯一规范：禁止降级/备用/隐式兜底（除非命令明确授权）。
-- 互链完整：任务与 test 以及与相应文档双向互链；非根数据文档必须回链根数据库索引。
-- 父子规划：总计划只放占位任务并链接至子计划；禁止重复维护两份详情。
-
----
-
-## 日志契约（命令自写 + Agent 追加）
-```md
-# /spec-init @ <scope_dir>
-start: <ISO>
-inputs: {...}
-## agent: <name>/<action> start
-...（动作明细）
-## agent: <name>/<action> result: success|partial|fail
-created:
-  files: [<list>]
-  anchors: [<list>]
-coverage:
-  plan_tasks: <n>
-  tests_created: <n>
-notes: <风险/后续建议>
-result: success | partial | fail
-```
+1. `docs/architecture-server.md`
+   - 分层结构（接口适配、领域服务、外部集成）。
+   - 描述请求映射、异常封装、响应格式、伸缩与观测策略。
+2. `docs/product-server.md`
+   - 列出核心能力、外部系统依赖、时序/状态示意，建立 `#feature-` 锚点。
+   - “接口清单”留给 interface-expert 补全；“测试入口”留给 test-agent。
+3. `docs/test-server.md`
+   - 规划单元、集成、契约、端到端测试，说明 mock 策略与测试数据。
+4. `docs/plan/plan-server.md`
+   - 任务拆解：核心接口、错误处理、可观测性、部署管线，关联测试锚点。
 
 ---
 
-## 幂等性策略
+## frontend-minimal scope
 
-- 以锚点作为主键 upsert（端点/实体/页面/VM）。
-- 已存在文档不覆盖，只补空白与占位。
-- 日志允许 `additional_actions:` 记录上下文相关的可复执行补充动作。
+1. `docs/architecture-minimal-ui.md`
+   - 说明组件结构、状态流转、与 shell/server 的通信方式（WebSocket/HTTP 代理）。
+2. `docs/product-minimal-ui.md`
+   - 描述极简交互路径、状态/错误呈现、无障碍要求，绘制 ASCII 线框图。
+3. `docs/test-minimal-ui.md`
+   - 规划五态验证、交互测试、自动化工具（如 Playwright）。
+4. `docs/plan/plan-minimal-ui.md`
+   - 任务包括框架搭建、连接 Shell、结果可视化、打包部署。
 
+---
+
+## 输出要求
+
+- 文档的 Implementation Records 中需记录本次 `/spec-init` 完成的锚点与日志链接。
+- 日志必须列出完成内容、待办、阻塞、风险、下一步命令。
+- 若信息不足无法补全，请在日志中写明待确认清单，并指向对应文档或任务。
+
+---
+
+## 参考资料
+
+- MCP 官方示例：<https://github.com/modelcontextprotocol/servers>
+- Minimal UI 可参考命令行工具或单页应用的最小实现，附链接于 `docs/interface-contract.md`。

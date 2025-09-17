@@ -1,169 +1,133 @@
-﻿# Context Engineering–Based Multi‑Layered Documentation System for Complex Project AI Coding (Claude Code Commands × Subagents)
+﻿# MCP Server 协作文档与命令体系
 
-English | [中文](README_cn.md)
-
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0-green.svg)](CHANGELOG.md)
-
-This repo provides a layered documentation system and a set of Claude Code natural‑language Commands and Subagents that make complex, multi‑module projects implementable by AI coding tools with precision, traceability, and control.
+> 适用于“手头已有可运行程序，希望快速包一层成为 Model Context Protocol (MCP) Server”的项目。体系聚焦后端与协议层，不预设数据库或复杂前端，帮助你用 AI 代理在最少人工介入下交付可部署的 MCP Server。
 
 ---
 
-## 🚀 Quick Start
+## 🎯 核心思路
 
-Clone
+1. **三层文档结构**
+   - **根层 (root)**：说明整体产品定位、端到端流程、接口契约、测试策略以及运行手册。
+   - **MCP Shell**：描述如何把既有程序封装成 MCP Server（命令行启动、stdin/stdout、工具与资源注册）。
+   - **Server 程序**：保持原有业务能力，补齐接口说明、错误处理、观测与测试策略。
+   - **Minimal UI**：极简单页（一个输入框、一个输出区域），用于本地冒烟和人工验证。
+
+2. **文档驱动执行**：所有规范（Rules、Explanation）先写在文档里；执行或修复时只在 Implementation Records 追加证据，确保历史可追溯。
+
+3. **命令 × 代理协作**：七个命令覆盖初始化、规格完善、执行、修复、拆分、质检、回滚；八个代理分别负责架构、接口、代码、产品、测试、任务规划与规则治理。
+
+4. **参考官方实现**：默认遵循 [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers) 的约定，保证与主流 MCP 客户端兼容。
+
+---
+
+## 🚀 快速上手
+
 ```bash
 git clone https://github.com/baronedog1/ce-mlds-aic.git
 cd ce-mlds-aic
 ```
 
-Load Commands/Subagents in Claude Code
-- Place the `.claude` directory at your Claude Code user root (global) or this project root (local) to auto‑load Commands and Subagents.
-- Select a provider/model (e.g., Kimi K2, ChatGLM 4.5) and configure API keys as per provider docs. Then run the following natural‑language commands from the command palette.
+1. **加载命令与代理**：将 `.claude` 目录放到 Claude Code 的用户根目录或项目根目录。
+2. **推荐命令顺序**：
+   ```text
+   /initial scope_dir=root
+   /spec-init scope_dir=root seed_requirements="<一句话描述交付目标与关键里程碑>"
 
-Recommended natural‑language command flow
-```text
-/initial Initialize at project root for an e‑commerce‑like project: create root doc skeletons and logs; include docs/, database/docs, backend, and frontend/shell; do not overwrite existing files. (parsed: scope_dir=root, modules=[backend, frontend-shell], create_examples=true)
+   cd mcp-shell
+   /initial scope_dir=mcp-shell
+   /spec-init scope_dir=mcp-shell
 
-/spec-init At root: fill product overview (goals/use cases), unified API spec, DB index, code/test hard rules; generate project plan. (parsed: scope_dir=root, seed_requirements="<1‑line overview; main modules; key milestones>")
+   cd ../server
+   /initial scope_dir=server
+   /spec-init scope_dir=server
 
-# Backend (optional)
-cd backend
-/initial Initialize backend scope. (→ scope_dir=backend)
-/spec-init Fill backend specs: module API list, DB usage mapping, tasks and tests. (→ scope_dir=backend)
+   cd ../frontend/minimal
+   /initial scope_dir=frontend-minimal
+   /spec-init scope_dir=frontend-minimal
 
-# Frontend shell (optional)
-cd ../frontend/shell
-/initial Initialize frontend shell and align to backend docs. (→ scope_dir=frontend-shell, backend_ref_dir=../../backend/docs)
-/spec-init Fill frontend shell specs: pages/integration/data mapping and plan. (→ scope_dir=frontend-shell, backend_ref_dir=../../backend/docs)
+   cd ../..
+   /commit-check
+   ```
+3. **迭代开发**：针对具体任务使用 `/execute-plan`；出现缺陷用 `/fix-issue`；任务过大用 `/split-plan` 拆分；提交前执行 `/commit-check`。
 
-# New backend module (optional)
-mkdir -p ../../backend/modules/orders && cd ../../backend/modules/orders
-/initial Initialize backend submodule. (→ scope_dir=backend-module)
-/spec-init Fill module specs: API/Data/Test/Plan. (→ scope_dir=backend-module)
+---
 
-# Quality gate (back at repo root)
-cd ../../../
-/commit-check Unified quality check; produce consolidated report and link it under docs/logs/.
+## 🧭 文档与目录
+
+```
+project-root/
+├── docs/
+│   ├── architecture.md          # 根层架构与端到端流程
+│   ├── service-overview.md      # 产品定位、角色、用例
+│   ├── interface-contract.md    # MCP 工具、资源、接口契约
+│   ├── code-standards.md        # 全局代码与依赖规范
+│   ├── test-strategy.md         # 测试金字塔与门槛
+│   ├── runbook-local.md         # 本地启动与排障指南
+│   └── plan/plan-project.md     # 根层任务计划
+├── mcp-shell/
+│   └── docs/architecture-mcp-shell.md 等文档
+├── server/
+│   └── docs/architecture-server.md 等文档
+└── frontend/minimal/
+    └── docs/architecture-minimal-ui.md 等文档
 ```
 
-Rules you should know
-- Docs use a “three‑section” pattern: Rules · Explanation · Implementation Records. Do not paste long code; link paths instead.
-- During execute/fix, only backfill “Implementation Records”, do not change Rules/Explanation.
-- Full walkthrough: `examples/ecommerce-walkthrough.md`.
+所有文档统一使用 YAML 头，并遵循 `Rules → Explanation → Implementation Records` 三段式结构。
 
 ---
 
-## 🎯 Scope & Fit
+## 🛠️ 命令职责
 
-- Designed for: medium/large systems with frontend + backend + DB, multiple modules and environments; needs collaboration, traceable delivery, and measurable quality.
-- Also fits: legacy projects adopting rules gradually (no big‑bang refactors required).
-- Not for: one‑off scripts, simple demos, pure prompt engineering.
-- Does not replace: unit/integration tests, code review, performance/security testing, or infrastructure.
-
----
-
-## 🧠 Rationale
-
-For complex projects, success is not “generate more code” but “do the smallest change, precisely located, with traceable process and maintainable evolution”. Large models struggle when they must compress context across many files; key facts (validation, boundaries, idempotence) get lost, and the safest fallback becomes “rewrite a new version”. This multiplies variants and increases complexity.
-
-We combine two ideas at once:
-1) spec‑first with natural language (define the “what” precisely); and
-2) a layered documentation system that scales across frontend/backends/DB/modules through anchors and cross‑links.
-
-Instead of a single monolithic spec, we organize a library of focused docs per layer/scope, connected by strict anchors. Commands and Subagents operate on these docs to create anchors, implement per anchor, and backfill Implementation Records — keeping rules stable and evidence accumulated over time.
+| 命令 | 作用 | 常用输入 | 核心产出 |
+| --- | --- | --- | --- |
+| `/initial` | 建立目录骨架与文档空头 | `scope_dir` (root/mcp-shell/server/frontend-minimal) | 架构文档、CLAUDE 规范、三域文档模板、初始化日志 |
+| `/spec-init` | 补齐文档内容、生成任务锚点 | `scope_dir`、`seed_requirements` | 产品概览、接口契约、测试策略、计划任务 |
+| `/execute-plan` | 针对单一任务实施与验证 | `task_anchor` | 代码改动、测试记录、Implementation Records |
+| `/fix-issue` | 缺陷闭环（问题→原因→改动→验证） | `issue_title`、`scope_dir` | 修复方案、测试证据、文档回填 |
+| `/split-plan` | 拆分大型任务并生成子计划 | `parent_task_anchor` | 子计划文档与互链 |
+| `/commit-check` | 提交前统一质检 | root | 文档/代码/测试一致性报告 |
+| `/reset` | 安全回滚并记录教训 | root 或子域 | 回滚方案、验收记录、Lessons Learned |
 
 ---
 
-## 🧩 The System (Layers, Anchors, Cross‑Links)
+## 🤖 代理角色
 
-Docs per scope
-- Architecture: `docs/architecture*.md`
-- Product: `docs/product-*.md` / `product-*-ui.md`
-- API: `docs/api-*.md` / `integration-*.md`
-- Data: `database/docs/database.md` (root index) and `database/docs/tables/*.md` (per table)
-- Code rules: `docs/code-*.md`
-- Test: `docs/test-*.md`
-- Plan: `docs/plan/plan-*.md`
-
-Anchor names
-- Tasks: `#task-<kebab>`
-- Features: `#feature-<kebab>`
-- API: `#api-<kebab>`
-- Table: `#table-<snake>`
-- Page: `#page-<kebab>`
-- VM: `#vm-<kebab>`
-- Test case: `#test-<kebab>`
-
-Cross‑link rules
-- Plan tasks ↔ Test cases are bidirectional.
-- Specs link each other with relative paths only; links must be reachable.
-- Non‑root data docs (module/frontend) must link back to the root DB index; field lists live only in table docs (`database/docs/tables/*.md`).
-
-Idempotency
-- Add‑only; do not overwrite existing files; upsert by anchors; append Implementation Records chronologically.
-
-Docs boundary
-- Natural language + diagrams; do not embed code/DDL/scripts; link to code or migrations by path.
+| 代理 | 适用范围 | 核心职责 |
+| --- | --- | --- |
+| Architect | root / mcp-shell / server / minimal UI | 绘制架构蓝图、交互流程、部署拓扑 |
+| Interface Expert | 同上 | 维护接口契约，描述工具与资源语义 |
+| Code Agent | 同上 | 设定代码规范、审查依赖边界、监控质量门槛 |
+| Product Manager | 同上 | 撰写服务/体验文档，保持与计划、测试对齐 |
+| Test Agent | 同上 | 规划测试策略、生成用例、记录执行证据 |
+| Task Planner | 同上 | 建立任务卡，维护 Plan ↔ Product/Test 互链 |
+| Rules Editor | root | 整理规则、更新 CLAUDE.md、追加历史记录 |
+| Database Expert | — | 已移除：MCP Server 模式不再预设数据库代理 |
 
 ---
 
-## 🛠️ Commands
+## 🧪 验证方式
 
-- `/initial` — Create project/scope skeleton and doc heads; generate CLAUDE.md; set up `database/docs` index and table dirs. Default add‑only; logs under `docs/logs/initial-*.md`.
-- `/spec-init` — Fill rules/explanations: Product, API spec, DB index and table doc links, Code/Test standards; generate Plan with normalized task cards; anchors ready for execution.
-- `/execute-plan` — Execute exactly one task anchor; implement code within scope; (if DB) update root table docs; run tests; backfill Implementation Records; update plan status; write `execute-*.md` logs. Do not change Rules/Explanation.
-- `/fix-issue` — Problem → Cause → Change → Verification closed loop; if DB changes, update root table docs; backfill records in Product/API/Data/Test; update plan; write `fix-issue-*.md`.
-- `/split-plan` — Split a large parent task into child plans; establish parent/child bidirectional links; do not overwrite; add `plan-<task>-partN.md` and parent updates; `split-plan-*.md` logs.
-- `/commit-check` — Unified quality gate across Subagents; compute scores and blockers; optional auto‑commit when passing; write `commit-check-*.md`.
-- `/reset` — Safe analysis → preview → confirm → rollback (Git or cleanup); record lessons learned to corresponding docs; write `reset-*.md`.
-
-Command details are in `commands/*.md`.
+- **Shell**：在 Claude Desktop 等 MCP 客户端配置 `mcpServers`，验证工具注册、错误冒泡、重试策略。
+- **Server**：执行单元/契约/端到端测试，记录命令与输出；涉及外部 API 可结合 mock 或 sandbox。
+- **Minimal UI**：运行极简页面，确认输入、加载、错误、空态、成功等五种状态表现。
+- **合规检查**：通过 `/commit-check` 汇总文档互链、测试证据与代码规范状态。
 
 ---
 
-## 🤖 Subagents (Docs are the Contract)
+## 📚 参考资料
 
-- Product Manager: visual‑first; outputs product positioning, feature outline, page wire‑flows and five states; links to technical docs without expanding implementation details.
-- Architect: writes/reviews architecture specs; layering and boundaries; directory skeletons; consistency validation.
-- API Expert: unified API principles; backend endpoint lists; frontend integration docs; strictly “what”, no schema details.
-- Database Expert: root DB index and per‑table docs; frontend data mapping; module usage mapping; no DDL in docs.
-- Code Agent: code/dir standards; structure/deps/boundary audits; forbidden patterns; quality gates.
-- Test Agent: strategy, cases, execution records; coverage metrics and gates.
-- Task Planner: normalized plans and task cards; parent/child linking; cross‑links.
-- Rules Editor: dedupe/classify project rules; produce CLAUDE.md structured updates; preview before apply.
-
-Agent details are in `agents/*.md`.
+- 官方 MCP 参考实现合集：[modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers)
+- 示例日志与任务结构：查看 `docs/logs/` 与 `examples/` 目录。
+- 仓库仅维护这一份最新体系；如需其他语言版本，可基于此文档自行生成。
 
 ---
 
-## 📚 Example Walkthrough
+## 🤝 参与共建
 
-See `examples/ecommerce-walkthrough.md` for an end‑to‑end example using natural‑language commands.
+欢迎提交 Issue 或 PR，补充新的命令、代理、文档模板，以及不同语言 SDK 或部署模式（容器、Serverless 等）的实践经验。
 
----
+联系方式：
+- GitHub Issues / Discussions
+- Email：wuyy49@gmail.com
 
-## ✅ Hard Rules (Summary)
-
-- Docs first: rules/explanations live in docs; implementation lives in code. Execution only backfills Implementation Records.
-- Single source of truth: root DB index and per‑table docs are canonical for data; do not duplicate fields elsewhere.
-- Anchors everywhere: operate by anchors; upsert by anchors; link by relative paths.
-- Idempotency: add‑only, no overwrites; append Implementation Records chronologically.
-
----
-
-## 📄 License
-
-MIT — see `LICENSE`.
-
----
-
-## 🤝 Contributing & Contact
-
-Contributions are welcome — Issues and PRs for improvements and best practices.
-
-- Xiaohongshu: 四呆院夜一
-- Email: wuyy49@gmail.com
-
-Many complex workflows can be modeled with Commands × Agents beyond engineering — long‑form writing pipelines, multi‑source compilation, structured knowledge bases, etc. More examples will follow; collaboration is welcome.
-
+许可证：MIT（见 `LICENSE`）。

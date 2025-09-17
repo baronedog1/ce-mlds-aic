@@ -1,171 +1,155 @@
-# Project Development Guide (CLAUDE.md)
+﻿# 开发协作指南（CLAUDE.md）
 
-This guide is the living contract for how we develop complex projects with Claude Code Commands × Subagents and a layered documentation system. It defines principles, the doc layout, anchor rules, quality gates, and the day‑to‑day command workflows. Docs are the single source for rules/explanations; code holds implementations.
-
----
-
-## 🎯 Core Principles
-
-- Docs first: rules/explanations live in docs; implementation lives in code (linked by relative paths).
-- Pure natural language: all specification documents must use natural language only, no code snippets, SQL, or DDL.
-- Single source of truth: avoid duplicates; prefer links to the canonical place (e.g., root DB index and per‑table docs).
-- Anchor‑driven: operate via anchors and upsert by anchors; make cross‑links bidirectional and reachable.
-- Honest tests and evidence: record real executions; link logs, reports, and screenshots; do not remove failures.
-- No fallback/implicit defaults: no silent catch‑alls or downgrade "compat" behavior unless explicitly approved.
-- Idempotency: add‑only; do not overwrite existing files; append Implementation Records chronologically.
+本指南是使用 Claude Code 命令 × 子代理协作构建 MCP Server 的“作业合同”。它规定核心原则、文档布局、锚点规则、质量门槛以及命令的日常使用方式。所有规范与解释必须写在文档中；代码仅承载实现，并通过相对路径链接回文档。
 
 ---
 
-## 📚 Documentation System
+## 🎯 核心原则
 
-- Architecture: `docs/architecture*.md`
-- Product: `docs/product-*.md` · `docs/product-*-ui.md`
-- API: `docs/api-*.md` · `docs/integration-*.md` (frontend)
-- Data: `database/docs/database.md` (root index) · `database/docs/tables/*.md` (per table)
-- Code standards: `docs/code-*.md`
-- Test: `docs/test-*.md`
-- Plan: `docs/plan/plan-*.md`
-- Logs: `docs/logs/<command>-YYYYMMDD-HHMM*.md`
-
-Notes
-- Non‑root data docs (module/frontend) must link back to the root DB index; table field lists live only in `database/docs/tables/*.md`.
-- Product and Plan at root must be complete; other root specs set global principles and link to modules.
+- **文档先于实现**：Rules / Explanation 写在文档内；Implementation 只存在于代码与 Implementation Records。
+- **只用自然语言**：规范文档禁止粘贴代码、SQL、DDL；可以使用表格或 ASCII 图。
+- **单一事实源**：同一信息只出现一次；引用其它位置请使用相对路径链接。
+- **锚点驱动**：通过锚点定位与更新；Plan ↔ Test ↔ Product ↔ Interface 必须双向可达。
+- **真实测试与证据**：记录真实执行的命令/日志/截图，失败记录不得删除或伪造。
+- **无隐式降级**：禁止“默默兼容”“兜底 fallback”；若需要例外必须在文档中显式批准。
+- **幂等与追加**：命令只添加内容，不覆盖既有段落；Implementation Records 按时间追加。
 
 ---
 
-## 🔖 Anchor Naming
+## 📚 文档体系
 
-- Task: `#task-<kebab>`
-- Feature: `#feature-<kebab>`
-- API: `#api-<kebab>`
-- Table: `#table-<snake>`
-- Page: `#page-<kebab>`
-- VM: `#vm-<kebab>`
-- Test: `#test-<kebab>`
+- 根层：`docs/architecture.md`、`docs/service-overview.md`、`docs/interface-contract.md`、`docs/code-standards.md`、`docs/test-strategy.md`、`docs/runbook-local.md`、`docs/plan/plan-project.md`
+- MCP Shell：`mcp-shell/docs/architecture-mcp-shell.md`、`product-mcp-shell.md`、`integration-mcp-shell.md`、`test-mcp-shell.md`、`plan/plan-mcp-shell.md`
+- Server：`server/docs/architecture-server.md`、`product-server.md`、`test-server.md`、`plan/plan-server.md`
+- Minimal UI：`frontend/minimal/docs/architecture-minimal-ui.md`、`product-minimal-ui.md`、`test-minimal-ui.md`、`plan/plan-minimal-ui.md`
+- 日志：`docs/logs/<command>-YYYYMMDD-HHmm.md`
 
-Rules
-- Use anchors as primary keys for upsert; avoid creating variants for the same concept.
-- Keep cross‑links relative and bidirectionally reachable (e.g., Plan ↔ Test).
+说明
+- 所有文档采用统一 YAML 头，结构为 `Rules → Explanation → Implementation Records`。
+- 若存在外部依赖（API、消息、存储），在对应文档中描述并链接计划与测试。
 
 ---
 
-## ✅ Quality Gates (defaults)
+## 🔖 锚点命名
 
-- Code: lint/type = 0 errors; forbidden patterns = 0 (e.g., `any`, `@ts-ignore`, prod `console.log`); duplication ≤ 5%; no boundary violations.
-- Test: key paths 100% pass; critical defects = 0; five states covered for key pages.
-- Contracts: API/auth/error/idempotence/retry covered; frontend Integration consistent with backend API.
-- Data: non‑root data docs link root index; table field lists exist only in table docs.
+- 任务：`#task-<kebab>`
+- 能力/功能：`#feature-<kebab>`
+- 接口/工具：`#interface-<kebab>`
+- 页面/场景：`#page-<kebab>`
+- 测试：`#test-<kebab>`
 
----
-
-## 🛠️ Command Workflows
-
-Reference: `commands/*.md`
-
-- `/initial` — Create project/scope skeleton and doc heads; generate this CLAUDE.md; set up `database/docs` and `tables/`; add `docs/logs/initial-*.md`.
-- `/spec-init` — Fill rules/explanations: Product, API spec, DB index and table links, Code/Test standards; generate Plan with normalized task cards; anchors ready for execution.
-- `/execute-plan` — Execute exactly one task anchor; implement within scope; (if DB) update root table docs; run tests; backfill Implementation Records; update plan status; write `execute-*.md`.
-- `/fix-issue` — Problem → Cause → Change → Verification closed loop; (if DB) update root table docs; backfill Product/API/Data/Test; update plan; write `fix-issue-*.md`.
-- `/split-plan` — Split a large parent task into child plans; establish parent/child bidirectional links; don’t overwrite; add `plan-<task>-partN.md`; `split-plan-*.md` logs.
-- `/commit-check` — Unified quality gate across Subagents; compute scores and blockers; optional auto‑commit when passing; write `commit-check-*.md`.
-- `/reset` — Safe analysis → preview → confirm → rollback (Git or cleanup); record lessons to corresponding docs; write `reset-*.md`.
-
-Conventions
-- Execution/fix phases must not change “Rules/Explanation”; only backfill Implementation Records.
-- Cross‑links and anchors must be confirmed or created before execution.
+规则
+- 锚点是唯一 ID，不复用不同语义。
+- 所有跨文档链接必须是相对路径并确保可达；Plan ↔ Test ↔ Product ↔ Interface 必须互链。
 
 ---
 
-## 🤖 Subagents (docs are the contract)
+## ✅ 质量门槛（默认）
 
-Reference: `agents/*.md`
-
-- Product Manager — visual‑first; product positioning, feature outline, UI wire‑flows and five states; link tech docs, no impl details.
-- Architect — architecture specs; layering and boundaries; directory skeletons; consistency validation.
-- API Expert — unified API principles; backend endpoint lists; frontend integration docs; “what” only, no schema detail.
-- Database Expert — root DB index and per‑table docs; frontend data mapping; module usage mapping; no DDL in docs.
-- Code Agent — code/dir standards; structure/deps/boundary audits; forbidden patterns; quality gates.
-- Test Agent — strategy, cases, execution records; coverage metrics and gates.
-- Task Planner — normalized plans and task cards; parent/child linking; cross‑links.
-- Rules Editor — dedupe/classify project rules; produce CLAUDE.md structured updates; preview before apply.
+- **代码**：lint/type 错误为 0；`any`、`@ts-ignore`、生产环境 `console.log` 等禁用模式为 0；不允许越界引用。
+- **测试**：关键任务 100% 通过；Minimal UI 覆盖正常/加载/错误/空/成功五态。
+- **契约**：接口契约与实现一致；错误码、鉴权、超时、幂等、重试等约束有测试覆盖。
+- **运行手册**：`docs/runbook-local.md` 必须可复现本地启动与排障步骤。
 
 ---
 
-## 🧱 Architecture Rules (summary)
+## 🛠️ 命令工作流
 
-- Clear layers: API/Routing ↔ Service/Business ↔ Data/Model; frontend: router/pages/components/services/state.
-- Boundaries: no cross‑module direct DB access; no bypassing gateways; frontend calls backend via Integration clients only.
-- Directory skeletons: follow canonical structure per scope; keep tests/docs in standard locations.
+参考：`commands/*.md`
 
----
+- `/initial`：搭建根层或子域目录骨架与文档空头，生成 CLAUDE.md，写入 `docs/logs/initial-*.md`。
+- `/spec-init`：补齐 Rules/Explanation，生成任务锚点、计划、测试策略与接口契约。
+- `/execute-plan`：实现单个任务锚点；代码改动、测试、Implementation Records、计划状态同步一次完成。
+- `/fix-issue`：问题→原因→改动→验证→文档回填的闭环；适用于缺陷或紧急回退后的修复。
+- `/split-plan`：拆分大型任务，生成子计划并建立父子双向链接。
+- `/commit-check`：提交前统一质检，输出阻塞与建议；可附建议提交信息。
+- `/reset`：执行安全回滚，记录 Dry Run、回滚步骤、验证与 Lessons Learned。
 
-## 🔗 API & Integration Rules (summary)
-
-- Root API spec defines auth, error format, pagination/sort/filter, versioning, rate limits.
-- Backend APIs: endpoints listed under `### api-<kebab>` with 1–2 sentence purpose; link related Product/Plan/Test/DB.
-- Frontend Integration: reference backend API anchors; record usage and integration implementation records.
-
----
-
-## 🗃️ Database Rules (summary)
-
-- Root index: `database/docs/database.md` lists selection/env/conn/migration/table list with links to `tables/*`.
-- Per table: `database/docs/tables/<table>.md` holds natural‑language fields list, relations, index tips, implementation records.
-- Module usage: `docs/database-<module>.md` says which tables are used and why; link root table docs; do not duplicate fields.
-- Frontend data mapping: `docs/data-<scope>-ui.md` maps VM ↔ API ↔ table.field and links to DB root index and table docs.
+约束
+- 执行或修复阶段禁止修改 Rules/Explanation；若需更新规范请重新执行 `/spec-init`。
+- 任何命令生成的日志必须与相关任务或文档互链。
 
 ---
 
-## 🧪 Test Rules (summary)
+## 🤖 子代理职责
 
-- Strategy docs define scope, coverage map, env matrix, acceptance gates.
-- Cases derive from plan tasks (DoD + steps); plan ↔ test anchors are bidirectional.
-- Execution records include status (pass/fail/blocked), actuals, and evidence links.
+参考：`agents/*.md`
+
+- **Architect**：输出/校验架构蓝图、交互流、目录骨架。
+- **Interface Expert**：维护 `docs/interface-contract.md` 及子域接口段落。
+- **Code Agent**：定义代码规范、审查依赖边界、监控质量门槛。
+- **Product Manager**：撰写服务/体验文档，串联计划与测试。
+- **Test Agent**：制定测试策略、生成用例、记录执行证据与覆盖率。
+- **Task Planner**：维护计划文档与任务卡，保持文档互链一致。
+- **Rules Editor**：整理协作规则、增量更新 CLAUDE.md、记录历史。
+- （Database Expert 已移除，若项目需要数据库请在 server 文档中自定义约束。）
 
 ---
 
-## 🗓️ Plan Conventions
+## 🧱 架构准则
 
-- Files: `docs/plan/plan-*.md`; anchors `#task-<kebab>`.
-- Task card essentials: goal (one line), related docs, implementation path (steps/links), DoD, evidence, status, implementation records, issue records.
-- Parent/child: use `/split-plan` for large tasks; parent lists child plans; child header contains `parent_plan` link.
+- 分层清晰：shell（封装）↔ server（业务）↔ minimal UI（验证）；禁止跨层直接调用内部实现。
+- 通信统一：shell 与 server 默认使用 MCP JSON-RPC over stdio（或文档说明的替代协议）。
+- 依赖受控：server 访问外部系统需在文档列出凭证、限流、回退策略；UI 只通过公开接口交互。
+- 目录规范：按推荐骨架放置源码、测试、配置与文档；避免零散文件。
 
 ---
 
-## 🧾 Implementation Records (pattern)
+## 🔗 接口与集成准则
 
-Use concise entries with links and files changed.
+- 根层接口契约描述所有 MCP 工具、资源、错误码、重试策略。
+- shell 文档需展示 prompt → tool → server 的映射，指出客户端配置。
+- server 文档维护能力清单、外部依赖与速率限制，接口锚点链接到计划与测试。
+- minimal UI 文档说明用户触发点、状态变化、错误呈现，并关联对应接口锚点。
 
-```md
-- [YYYY-MM-DD HH:MM] <one-line summary>
-  files: [a.ts, b.ts]
-  log: ../logs/<command>-YYYYMMDD-HHMM.md#todo-<n>
+---
+
+## 🧪 测试准则
+
+- `docs/test-strategy.md` 描述测试金字塔、环境矩阵、覆盖要求。
+- 子域测试文档以任务锚点驱动，用 checkbox 管理执行状态，附证据链接。
+- 执行日志需包含命令、输出、截图/录屏路径，失败时注明后续计划。
+
+---
+
+## 🗓️ 计划约定
+
+- 计划文件：`docs/plan/plan-*.md`；任务锚点 `#task-<kebab>`。
+- 任务卡需包含目标、相关文档、实施步骤、验收标准、证据、状态、阻塞记录。
+- 大任务使用 `/split-plan` 拆分；父计划列出子计划链接；子计划头部写明 `parent_plan`。
+
+---
+
+## 🧾 Implementation Records 模板
+
+```
+- [YYYY-MM-DD HH:MM] <一句摘要>
+  files: [相对路径]
+  tests: <命令或截图>
+  log: ../logs/<command>-YYYYMMDD-HHMM.md#todo-<编号>
 ```
 
-Plan issue record (example)
-```md
+计划中的问题记录示例：
+```
 ### Issue Record
 - Discovered at: YYYY-MM-DD HH:MM:SS
-- Symptoms: <summary>
-- Repro path: <steps>
-- Related docs: [links]
+- Symptoms: <描述>
+- Repro path: <步骤>
+- Related docs: [链接]
 - Fix status: pending | in_progress | fixed | blocked
 - Fix log: docs/logs/fix-issue-YYYYMMDD-HHMM.md
 ```
 
 ---
 
-## 📝 Change History
+## 📝 变更记录
 
-Record notable changes to this guide and project‑level policies here.
-
-- [YYYY-MM-DD] Initial guide created.
+- [YYYY-MM-DD] 首次建立 MPC Server 版协作指南。
 
 ---
 
-## 🙌 Contributing & Contact
+## 🙌 贡献与联系
 
-- Contributions welcome via Issues and PRs.
-- Email: wuyy49@gmail.com
-- Xiaohongshu: 四呆院夜一
-
+- 欢迎通过 Issue / PR 贡献命令、代理、文档模板或最佳实践。
+- Email：wuyy49@gmail.com
+- Xiaohongshu：四呆院夜一
